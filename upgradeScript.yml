@@ -1,0 +1,36 @@
+---
+- hosts: all
+  tasks:
+          - name: update cache from repo
+            apt:
+                    update-cache: yes
+            changed_when: 0
+            become: yes
+
+          - name: run simulation to find pending upgrades
+            command: apt-get --simulate dist-upgrade
+            #args: 
+            # when: failed
+            register: simulate
+            changed_when: 0
+
+          - name: intreprete simulation o/p to find upgrade pakages
+            set_fact:
+                    updates: '{{ simulate.stdout_lines| select ("match", "^Inst")| list | sort }}'
+            changed_when: 0
+
+          - name: show pending upgrades
+            debug: 
+                var: updates
+            changed_when: updates.0 is defined
+
+          - name: install updates
+            apt: upgrade=dist
+            when: updates.0 is defined
+            become: yes
+
+          - name: check does reboot required or not
+            command: ls /var/run/reboot-required
+            register: needsreboot
+            ignore_errors: yes
+            
